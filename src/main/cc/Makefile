@@ -29,6 +29,8 @@ endif
 PLATFORM ?= zynq
 OUT_DIR ?= $(GEN_DIR)
 CLOCK_PERIOD ?= 1.0
+EXTRA_VSRCS ?=
+VERILOG_INC ?=
 
 $(info platform: $(PLATFORM))
 $(info target design: $(DESIGN))
@@ -52,7 +54,7 @@ $(OUT_DIR)/$(DESIGN).chain:
 override CXXFLAGS += -I$(midas_dir) -I$(util_dir)
 override LDFLAGS := $(LDFLAGS) -L$(GEN_DIR) -lstdc++ -lpthread -lgmp 
 
-design_v = $(GEN_DIR)/$(shim).v
+design_v = $(GEN_DIR)/$(shim).v $(EXTRA_VSRCS)
 driver_h = $(foreach t, $(DRIVER), $(wildcard $(dir $(t))/*.h))
 endpoint_h := $(wildcard $(endpoint_dir)/*.h)
 endpoint_cc := $(wildcard $(endpoint_dir)/*.cc)
@@ -80,10 +82,11 @@ emul_files := simif simif_emul emul/mmio_$(PLATFORM) sample/sample
 emul_h := $(addprefix $(midas_dir)/, $(addsuffix .h, $(emul_files) emul/mmio))
 emul_cc := $(addprefix $(midas_dir)/, $(addsuffix .cc, $(emul_files) sample/simif_sample))
 emul_v := $(v_dir)/emul_$(PLATFORM).v
+BUFGCE_v := $(v_dir)/BUFGCE.v
 
 # Compile verilator emulation binary
 VERILATOR ?= verilator --cc --exe
-override VERILATOR_FLAGS := --assert -Wno-STMTDLY -O3 \
+override VERILATOR_FLAGS := --assert -Wno-STMTDLY -Wno-fatal -O3 \
 	-CFLAGS "$(CXXFLAGS)" -LDFLAGS "$(LDFLAGS) -lmidas" \
 	$(VERILATOR_FLAGS)
 
@@ -94,20 +97,20 @@ ifeq ($(PLATFORM),f1)
 top_module = F1Shim
 endif
 
-$(OUT_DIR)/V$(DESIGN): $(GEN_DIR)/$(DESIGN)-const.h $(design_v) $(lib) $(DRIVER) $(driver_h) $(emul_cc) $(emul_h) $(endpoint_cc) $(endpoint_h)
+$(OUT_DIR)/V$(DESIGN): $(GEN_DIR)/$(DESIGN)-const.h $(design_v) $(BUFGCE_v) $(lib) $(DRIVER) $(driver_h) $(emul_cc) $(emul_h) $(endpoint_cc) $(endpoint_h)
 	mkdir -p $(OUT_DIR)
 	rm -rf $(GEN_DIR)/V$(DESIGN).csrc
 	$(VERILATOR) $(VERILATOR_FLAGS) --top-module $(top_module) -Mdir $(GEN_DIR)/V$(DESIGN).csrc \
 	-CFLAGS "-include $< -include $(GEN_DIR)/V$(DESIGN).csrc/V$(top_module).h" \
-	-o $@ $(design_v) $(DRIVER) $(emul_cc) $(endpoint_cc)
+	-o $@ $(design_v) $(BUFGCE_v) $(DRIVER) $(emul_cc) $(endpoint_cc) -I$(VERILOG_INC)
 	$(MAKE) -C $(GEN_DIR)/V$(DESIGN).csrc -f V$(top_module).mk
 
-$(OUT_DIR)/V$(DESIGN)-debug: $(GEN_DIR)/$(DESIGN)-const.h $(design_v) $(lib) $(DRIVER) $(driver_h) $(emul_cc) $(emul_h) $(endpoint_cc) $(endpoint_h)
+$(OUT_DIR)/V$(DESIGN)-debug: $(GEN_DIR)/$(DESIGN)-const.h $(design_v) $(BUFGCE_v) $(lib) $(DRIVER) $(driver_h) $(emul_cc) $(emul_h) $(endpoint_cc) $(endpoint_h)
 	mkdir -p $(OUT_DIR)
 	rm -rf $(GEN_DIR)/V$(DESIGN)-debug.csrc
 	$(VERILATOR) $(VERILATOR_FLAGS) --trace --top-module $(top_module) -Mdir $(GEN_DIR)/V$(DESIGN)-debug.csrc \
 	-CFLAGS "-include $< -include $(GEN_DIR)/V$(DESIGN)-debug.csrc/V$(top_module).h" \
-	-o $@ $(design_v) $(DRIVER) $(emul_cc) $(endpoint_cc)
+	-o $@ $(design_v) $(BUFGCE_v) $(DRIVER) $(emul_cc) $(endpoint_cc) -I$(VERILOG_INC)
 	$(MAKE) -C $(GEN_DIR)/V$(DESIGN)-debug.csrc -f V$(top_module).mk
 
 verilator: $(OUT_DIR)/V$(DESIGN) $(OUT_DIR)/$(DESIGN).chain $(OUT_DIR)/dramsim2_ini
