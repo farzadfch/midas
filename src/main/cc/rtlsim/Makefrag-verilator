@@ -14,7 +14,7 @@
 #   top_module: The top of the DUT
 
 VERILATOR ?= verilator --cc --exe
-override VERILATOR_FLAGS := --assert -Wno-STMTDLY -O3 \
+override VERILATOR_FLAGS := --assert -Wno-STMTDLY -Wno-fatal -O3 \
 	-CFLAGS "$(CXXFLAGS) $(CFLAGS)" \
 	-LDFLAGS "$(LDFLAGS) " \
 	$(VERILATOR_FLAGS)
