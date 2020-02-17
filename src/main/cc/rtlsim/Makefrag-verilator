@@ -14,7 +14,9 @@
 #   top_module: The top of the DUT
 
 VERILATOR ?= verilator --cc --exe
-override VERILATOR_FLAGS := --assert -Wno-STMTDLY -O3 \
+override VERILATOR_FLAGS := --assert -Wno-STMTDLY -Wno-fatal -O3 \
+  --output-split 50000 \
+  --output-split-cfuncs 500 \
 	-CFLAGS "$(CXXFLAGS) $(CFLAGS)" \
 	-LDFLAGS "$(LDFLAGS) " \
 	$(VERILATOR_FLAGS)
@@ -25,7 +27,7 @@ $(OUT_DIR)/V$(DESIGN): $(emul_v) $(emul_cc) $(emul_h)
 	$(VERILATOR) $(VERILATOR_FLAGS) --top-module $(top_module) -Mdir $(GEN_DIR)/V$(DESIGN).csrc \
 	-CFLAGS "-include $(GEN_DIR)/V$(DESIGN).csrc/V$(top_module).h" \
 	-o $@ $(emul_v) $(emul_cc)
-	$(MAKE) -C $(GEN_DIR)/V$(DESIGN).csrc -f V$(top_module).mk
+	$(MAKE) VM_PARALLEL_BUILDS=1 -C $(GEN_DIR)/V$(DESIGN).csrc -f V$(top_module).mk
 
 $(OUT_DIR)/V$(DESIGN)-debug: $(emul_v) $(emul_cc) $(emul_h)
 	mkdir -p $(OUT_DIR)
@@ -33,4 +35,4 @@ $(OUT_DIR)/V$(DESIGN)-debug: $(emul_v) $(emul_cc) $(emul_h)
 	$(VERILATOR) $(VERILATOR_FLAGS) --trace --top-module $(top_module) -Mdir $(GEN_DIR)/V$(DESIGN)-debug.csrc \
 	-CFLAGS "-include $(GEN_DIR)/V$(DESIGN)-debug.csrc/V$(top_module).h" \
 	-o $@ $(emul_v) $(emul_cc)
-	$(MAKE) -C $(GEN_DIR)/V$(DESIGN)-debug.csrc -f V$(top_module).mk
+	$(MAKE) VM_PARALLEL_BUILDS=1 -C $(GEN_DIR)/V$(DESIGN)-debug.csrc -f V$(top_module).mk
