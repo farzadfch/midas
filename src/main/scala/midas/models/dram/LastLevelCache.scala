@@ -334,17 +334,31 @@ class LLCModel(cfg: BaseConfig)(implicit p: Parameters) extends NastiModule()(p)
     io.req.w.fire && io.req.w.bits.last
   io.wResp.bits := WriteResponseMetaData(writes.bits)
 
+  val rd_wr_turn = Reg(Bool())
+
   switch (state) {
     is (llc_idle) {
       when (can_refill) {
         state := llc_refill
         refill_start := true.B
+      }.elsewhen(can_deq_read && can_deq_write) {
+        when(rd_wr_turn) {
+          state := llc_r_mdaccess
+          read_start := true.B
+          rd_wr_turn := false.B
+        }.otherwise {
+          state := llc_w_mdaccess
+          write_start := true.B
+          rd_wr_turn := true.B
+        }
       }.elsewhen(can_deq_read) {
         state := llc_r_mdaccess
         read_start := true.B
+        rd_wr_turn := false.B
       }.elsewhen(can_deq_write) {
         state := llc_w_mdaccess
         write_start := true.B
+        rd_wr_turn := true.B
       }
     }
     is (llc_r_mdaccess) {
