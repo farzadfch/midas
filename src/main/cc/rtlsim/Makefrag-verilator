@@ -15,8 +15,8 @@
 
 VERILATOR ?= verilator --cc --exe
 override VERILATOR_FLAGS := --assert -Wno-STMTDLY -Wno-fatal -O3 \
-  --output-split 50000 \
-  --output-split-cfuncs 500 \
+  --output-split 200000 \
+  --output-split-cfuncs 2000 \
 	-CFLAGS "$(CXXFLAGS) $(CFLAGS)" \
 	-LDFLAGS "$(LDFLAGS) " \
 	$(VERILATOR_FLAGS)
