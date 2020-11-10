@@ -172,6 +172,8 @@ class LLCModel(cfg: BaseConfig)(implicit p: Parameters) extends NastiModule()(p)
   val write_set_collision = mshrs.exists({ m: MSHR => m.setCollision(write_set) })
   val can_deq_write = writes.valid && !write_set_collision && !miss_resource_hazard && mshr_available && io.wResp.ready
 
+  val writesW = Queue(io.req.w, 6)
+
   val llc_idle :: llc_r_mdaccess :: llc_r_wb :: llc_r_daccess :: llc_w_mdaccess :: llc_w_wb :: llc_w_daccess :: llc_refill :: Nil = Enum(8)
 
   val state = RegInit(llc_idle)
@@ -284,7 +286,7 @@ class LLCModel(cfg: BaseConfig)(implicit p: Parameters) extends NastiModule()(p)
                             len  = axi4_block_len)
   s2_aw_mem.io.enq.valid := need_writeback
 
-  writes.ready := io.req.w.bits.last && io.req.w.fire
+  writes.ready := writesW.bits.last && writesW.fire
 
   io.memReq.ar <> s2_ar_mem.io.deq
   io.memReq.aw <> s2_aw_mem.io.deq
@@ -320,9 +322,9 @@ class LLCModel(cfg: BaseConfig)(implicit p: Parameters) extends NastiModule()(p)
 
   d_array_busy.io.decr := Mux(state === llc_w_wb || state === llc_r_wb,
                               io.memReq.w.fire,
-                              Mux(state === llc_w_daccess, io.req.w.valid, true.B))
+                              Mux(state === llc_w_daccess, writesW.valid, true.B))
 
-  io.req.w.ready := (state === llc_w_daccess) || (state === llc_w_mdaccess && !evict_dirty_way)
+  writesW.ready := (state === llc_w_daccess) || (state === llc_w_mdaccess && !evict_dirty_way)
 
   io.rResp.valid := (refill_start && !mshrs(io.memRResp.bits.id).xaction.isWrite) ||
                     (state === llc_r_mdaccess && hit_valid)
@@ -331,7 +333,7 @@ class LLCModel(cfg: BaseConfig)(implicit p: Parameters) extends NastiModule()(p)
                        ReadResponseMetaData(reads.bits))
 
   io.wResp.valid := (state === llc_w_mdaccess || state === llc_w_daccess) &&
-    io.req.w.fire && io.req.w.bits.last
+    writesW.fire && writesW.bits.last
   io.wResp.bits := WriteResponseMetaData(writes.bits)
 
   switch (state) {
@@ -362,7 +364,7 @@ class LLCModel(cfg: BaseConfig)(implicit p: Parameters) extends NastiModule()(p)
     }
     is (llc_w_mdaccess) {
       when (!evict_dirty_way) {
-        when (io.req.w.valid && io.req.w.bits.last) {
+        when (writesW.valid && writesW.bits.last) {
           state := llc_idle
         }.otherwise {
           state := llc_w_daccess
@@ -382,7 +384,7 @@ class LLCModel(cfg: BaseConfig)(implicit p: Parameters) extends NastiModule()(p)
       }
     }
     is (llc_w_daccess) {
-      when (io.req.w.valid && io.req.w.bits.last) {
+      when (writesW.valid && writesW.bits.last) {
         state := llc_idle
       }
     }
