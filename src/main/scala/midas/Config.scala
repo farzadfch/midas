@@ -52,7 +52,7 @@ class SimConfig extends Config((site, here, up) => {
     addrBits = chisel3.util.log2Ceil(site(HostMemNumChannels)) + site(HostMemChannelNastiKey).addrBits,
     // TODO: We should try to constrain masters to 4 bits of ID space -> but we need to map
     // multiple target-ids on a single host-id in the DRAM timing model to support that
-    idBits   = 6
+    idBits   = 9
   )
 })
 
